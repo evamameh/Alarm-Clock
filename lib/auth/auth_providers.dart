@@ -1,5 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../firebase_options.dart';
@@ -18,13 +20,15 @@ final authStateProvider = StreamProvider<User?>((ref) async* {
 });
 
 final authControllerProvider = Provider<AuthController>((ref) {
-  return AuthController(ref.watch(firebaseAuthProvider));
+  return AuthController(ref.watch(firebaseAuthProvider), GoogleSignIn.instance);
 });
 
 class AuthController {
-  const AuthController(this._auth);
+  AuthController(this._auth, this._googleSignIn);
 
   final FirebaseAuth _auth;
+  final GoogleSignIn _googleSignIn;
+  var _isGoogleSignInInitialized = false;
 
   Future<void> register({
     required String email,
@@ -44,5 +48,40 @@ class AuthController {
     );
   }
 
-  Future<void> logout() => _auth.signOut();
+  Future<void> signInWithGoogle() async {
+    if (kIsWeb) {
+      await _auth.signInWithPopup(GoogleAuthProvider());
+      return;
+    }
+
+    await _ensureGoogleSignInInitialized();
+    final googleUser = await _googleSignIn.authenticate();
+    final googleAuth = googleUser.authentication;
+    final credential = GoogleAuthProvider.credential(
+      idToken: googleAuth.idToken,
+    );
+
+    await _auth.signInWithCredential(credential);
+  }
+
+  Future<void> logout() async {
+    if (_isGoogleSignInInitialized) {
+      try {
+        await _googleSignIn.signOut();
+      } on GoogleSignInException {
+        // The user may have signed in with email/password only.
+      }
+    }
+    await _auth.signOut();
+  }
+
+  Future<void> _ensureGoogleSignInInitialized() async {
+    if (_isGoogleSignInInitialized) return;
+
+    const webClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
+    await _googleSignIn.initialize(
+      clientId: kIsWeb && webClientId.isNotEmpty ? webClientId : null,
+    );
+    _isGoogleSignInInitialized = true;
+  }
 }

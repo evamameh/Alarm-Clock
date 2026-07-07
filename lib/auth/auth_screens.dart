@@ -23,10 +23,14 @@ class LoginScreen extends HookConsumerWidget {
       message: message,
       footerLabel: 'Create an account',
       footerAction: onShowRegister,
+      googleLabel: 'Continue with Google',
       onSubmit: (email, password) {
         return ref
             .read(authControllerProvider)
             .login(email: email, password: password);
+      },
+      onGoogleSubmit: () {
+        return ref.read(authControllerProvider).signInWithGoogle();
       },
     );
   }
@@ -52,10 +56,14 @@ class RegistrationScreen extends HookConsumerWidget {
       footerLabel: 'I already have an account',
       footerAction: onShowLogin,
       onSuccess: onRegistered,
+      googleLabel: 'Register with Google',
       onSubmit: (email, password) {
         return ref
             .read(authControllerProvider)
             .register(email: email, password: password);
+      },
+      onGoogleSubmit: () {
+        return ref.read(authControllerProvider).signInWithGoogle();
       },
     );
   }
@@ -71,7 +79,9 @@ class _AuthForm extends HookWidget {
     required this.footerLabel,
     required this.footerAction,
     this.onSuccess,
+    required this.googleLabel,
     required this.onSubmit,
+    required this.onGoogleSubmit,
   });
 
   final String title;
@@ -82,7 +92,9 @@ class _AuthForm extends HookWidget {
   final String footerLabel;
   final VoidCallback footerAction;
   final VoidCallback? onSuccess;
+  final String googleLabel;
   final Future<void> Function(String email, String password) onSubmit;
+  final Future<void> Function() onGoogleSubmit;
 
   @override
   Widget build(BuildContext context) {
@@ -90,6 +102,7 @@ class _AuthForm extends HookWidget {
     final emailController = useTextEditingController();
     final passwordController = useTextEditingController();
     final isSubmitting = useState(false);
+    final isGoogleSubmitting = useState(false);
     final errorText = useState<String?>(null);
 
     Future<void> submit() async {
@@ -108,6 +121,23 @@ class _AuthForm extends HookWidget {
         errorText.value = error.toString();
       } finally {
         if (context.mounted) isSubmitting.value = false;
+      }
+    }
+
+    Future<void> submitGoogle() async {
+      FocusScope.of(context).unfocus();
+
+      isGoogleSubmitting.value = true;
+      errorText.value = null;
+
+      try {
+        await onGoogleSubmit();
+      } on FirebaseAuthException catch (error) {
+        errorText.value = _authErrorMessage(error, isLogin: isLogin);
+      } catch (error) {
+        errorText.value = error.toString();
+      } finally {
+        if (context.mounted) isGoogleSubmitting.value = false;
       }
     }
 
@@ -240,6 +270,35 @@ class _AuthForm extends HookWidget {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.roseDark,
+                        minimumSize: const Size.fromHeight(58),
+                        side: const BorderSide(color: AppColors.border),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
+                      onPressed: isGoogleSubmitting.value ? null : submitGoogle,
+                      icon: isGoogleSubmitting.value
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: AppColors.rose,
+                                strokeWidth: 2.4,
+                              ),
+                            )
+                          : const _GoogleMark(),
+                      label: Text(
+                        googleLabel,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 18),
                     TextButton(
                       onPressed: footerAction,
@@ -294,6 +353,22 @@ class _StatusMessage extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _GoogleMark extends StatelessWidget {
+  const _GoogleMark();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Text(
+      'G',
+      style: TextStyle(
+        color: Color(0xFF4285F4),
+        fontSize: 22,
+        fontWeight: FontWeight.w900,
       ),
     );
   }
