@@ -25,6 +25,7 @@ class AlarmAppShell extends ConsumerWidget {
     final screens = [
       HomeScreen(currentEmail: user?.email, onLogout: logout),
       AlarmsScreen(currentEmail: user?.email, onLogout: logout),
+      ProfileScreen(user: user, onLogout: logout),
     ];
 
     return Scaffold(
@@ -85,6 +86,12 @@ class _BottomNav extends StatelessWidget {
               selected: selectedIndex == 1,
               onTap: () => onSelected(1),
             ),
+            _NavItem(
+              icon: Icons.person_outline,
+              label: 'Profile',
+              selected: selectedIndex == 2,
+              onTap: () => onSelected(2),
+            ),
           ],
         ),
       ),
@@ -112,7 +119,7 @@ class _NavItem extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        width: 100,
+        width: 92,
         padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
           color: selected ? AppColors.blushStrong : Colors.transparent,

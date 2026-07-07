@@ -45,8 +45,9 @@ class AlarmModel {
 
   bool shouldRingAt(DateTime now) {
     if (!enabled) return false;
-    if (repeatDays.isNotEmpty && !repeatDays.contains(now.weekday))
+    if (repeatDays.isNotEmpty && !repeatDays.contains(now.weekday)) {
       return false;
+    }
     return now.hour == time.hour &&
         now.minute == time.minute &&
         now.second == 0;

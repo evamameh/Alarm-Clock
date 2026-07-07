@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../theme.dart';
@@ -235,6 +236,201 @@ class AlarmsScreen extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class ProfileScreen extends StatelessWidget {
+  const ProfileScreen({super.key, required this.user, this.onLogout});
+
+  final User? user;
+  final Future<void> Function()? onLogout;
+
+  @override
+  Widget build(BuildContext context) {
+    final primaryProvider = user?.providerData.isNotEmpty == true
+        ? user!.providerData.first
+        : null;
+    final displayName =
+        user?.displayName ?? primaryProvider?.displayName ?? 'No name provided';
+    final email = user?.email ?? primaryProvider?.email ?? 'No email provided';
+    final authMethod = _authMethodLabel(primaryProvider?.providerId);
+    final providerId = primaryProvider?.providerId ?? 'password';
+    final photoUrl = user?.photoURL ?? primaryProvider?.photoURL;
+
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: BrandHeader(currentEmail: user?.email, onLogout: onLogout),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(28, 34, 28, 120),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate([
+              const Text(
+                'Profile',
+                style: TextStyle(
+                  color: AppColors.ink,
+                  fontSize: 36,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Details from your sign-in provider',
+                style: TextStyle(color: AppColors.roseDark, fontSize: 20),
+              ),
+              const SizedBox(height: 30),
+              Container(
+                padding: const EdgeInsets.all(26),
+                decoration: softPanel(radius: 30),
+                child: Column(
+                  children: [
+                    CircleAvatar(
+                      radius: 46,
+                      backgroundColor: AppColors.blush,
+                      backgroundImage: photoUrl == null
+                          ? null
+                          : NetworkImage(photoUrl),
+                      child: photoUrl == null
+                          ? const Icon(
+                              Icons.person,
+                              color: AppColors.rose,
+                              size: 48,
+                            )
+                          : null,
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      displayName,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: AppColors.roseDark,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      email,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    _ProfileDetailRow(
+                      icon: Icons.badge_outlined,
+                      label: 'User Name',
+                      value: displayName,
+                    ),
+                    _ProfileDetailRow(
+                      icon: Icons.email_outlined,
+                      label: 'Email',
+                      value: email,
+                    ),
+                    _ProfileDetailRow(
+                      icon: Icons.verified_user_outlined,
+                      label: 'Authentication Method',
+                      value: authMethod,
+                    ),
+                    _ProfileDetailRow(
+                      icon: Icons.account_tree_outlined,
+                      label: 'Provider ID',
+                      value: providerId,
+                    ),
+                    _ProfileDetailRow(
+                      icon: Icons.fingerprint,
+                      label: 'Firebase UID',
+                      value: user?.uid ?? 'No UID available',
+                    ),
+                  ],
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _authMethodLabel(String? providerId) {
+    switch (providerId) {
+      case 'google.com':
+        return 'Google Login';
+      case 'password':
+        return 'Email Login';
+      case null:
+        return 'Email Login';
+      default:
+        return providerId;
+    }
+  }
+}
+
+class _ProfileDetailRow extends StatelessWidget {
+  const _ProfileDetailRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: const BoxDecoration(
+              color: AppColors.blush,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: AppColors.rose, size: 23),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  value,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                  style: const TextStyle(
+                    color: AppColors.roseDark,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
