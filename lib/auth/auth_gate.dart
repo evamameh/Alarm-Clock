@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -25,7 +27,7 @@ class _AuthGateState extends ConsumerState<AuthGate> {
 
     return authState.when(
       data: (user) {
-        if (user != null) return widget.child;
+        if (user != null) return _SessionTimeoutScope(child: widget.child);
 
         return _showRegister
             ? RegistrationScreen(
@@ -64,6 +66,63 @@ class _AuthGateState extends ConsumerState<AuthGate> {
     setState(() {
       _showRegister = false;
       _loginMessage = message;
+    });
+  }
+}
+
+class _SessionTimeoutScope extends ConsumerStatefulWidget {
+  const _SessionTimeoutScope({required this.child});
+
+  final Widget child;
+
+  @override
+  ConsumerState<_SessionTimeoutScope> createState() =>
+      _SessionTimeoutScopeState();
+}
+
+class _SessionTimeoutScopeState extends ConsumerState<_SessionTimeoutScope> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _restartTimer();
+  }
+
+  @override
+  void didUpdateWidget(covariant _SessionTimeoutScope oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _restartTimer();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen(sessionSettingsProvider, (previous, next) => _restartTimer());
+
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (_) => _restartTimer(),
+      onPointerMove: (_) => _restartTimer(),
+      child: widget.child,
+    );
+  }
+
+  void _restartTimer() {
+    _timer?.cancel();
+    final timeout = ref.read(sessionSettingsProvider).timeout;
+    _timer = Timer(timeout, () async {
+      if (!mounted) return;
+      await ref.read(authControllerProvider).logout();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Session timed out. Please login again.')),
+      );
     });
   }
 }

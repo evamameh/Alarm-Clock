@@ -6,6 +6,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../theme.dart';
 import '../time_formatters.dart';
+import '../weather/weather_widgets.dart';
 import 'alarm_model.dart';
 import 'alarm_providers.dart';
 import 'alarm_widgets.dart';
@@ -19,10 +20,10 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final now = ref.watch(clockProvider).value ?? DateTime.now();
-    final enabledAlarms = ref
-        .watch(alarmControllerProvider)
-        .alarms
-        .where((alarm) => alarm.enabled);
+    final alarms = ref.watch(
+      alarmControllerProvider.select((state) => state.alarms),
+    );
+    final enabledAlarms = alarms.where((alarm) => alarm.enabled);
     final nextAlarm = enabledAlarms.isEmpty ? null : enabledAlarms.first;
 
     return CustomScrollView(
@@ -31,119 +32,22 @@ class HomeScreen extends ConsumerWidget {
           child: BrandHeader(currentEmail: currentEmail, onLogout: onLogout),
         ),
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(28, 70, 28, 120),
+          padding: const EdgeInsets.fromLTRB(24, 28, 24, 120),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
-              Center(
-                child: Column(
-                  children: [
-                    FittedBox(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            formatClock(now),
-                            style: Theme.of(context).textTheme.headlineLarge,
-                          ),
-                          const SizedBox(width: 10),
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Text(
-                              periodFor(now),
-                              style: const TextStyle(
-                                color: AppColors.rose,
-                                fontSize: 34,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      formatDate(now),
-                      style: const TextStyle(
-                        color: AppColors.muted,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 2,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 70),
-              Container(
-                padding: const EdgeInsets.all(28),
-                decoration: softPanel(radius: 30),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 70,
-                      height: 70,
-                      decoration: const BoxDecoration(
-                        color: AppColors.blush,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.alarm,
-                        color: AppColors.rose,
-                        size: 38,
-                      ),
-                    ),
-                    const SizedBox(width: 26),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'NEXT ALARM',
-                            style: TextStyle(
-                              color: AppColors.ink,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.4,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            nextAlarm == null
-                                ? '--:--'
-                                : formatTimeOfDay(nextAlarm.time),
-                            style: const TextStyle(
-                              color: AppColors.rose,
-                              fontSize: 42,
-                              fontWeight: FontWeight.w900,
-                              height: 1,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Switch(
-                      value: nextAlarm != null,
-                      activeTrackColor: AppColors.rose,
-                      activeThumbColor: Colors.white,
-                      onChanged: nextAlarm == null
-                          ? null
-                          : (enabled) {
-                              ref
-                                  .read(alarmControllerProvider.notifier)
-                                  .toggleAlarm(nextAlarm.id, enabled);
-                            },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 36),
+              _ClockPanel(now: now),
+              const SizedBox(height: 22),
+              _NextAlarmPanel(alarm: nextAlarm),
+              const SizedBox(height: 22),
+              const WeatherPanel(),
+              const SizedBox(height: 24),
               FilledButton.icon(
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.rose,
                   foregroundColor: Colors.white,
-                  minimumSize: const Size.fromHeight(78),
+                  minimumSize: const Size.fromHeight(68),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(42),
+                    borderRadius: BorderRadius.circular(34),
                   ),
                 ),
                 onPressed: () => Navigator.of(context).push(
@@ -152,13 +56,180 @@ class HomeScreen extends ConsumerWidget {
                 icon: const Icon(Icons.add_circle_outline, size: 32),
                 label: const Text(
                   'Set Alarm',
-                  style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900),
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
                 ),
               ),
+              const SizedBox(height: 28),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Alarm Clock',
+                      style: TextStyle(
+                        color: AppColors.ink,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () =>
+                        ref.read(alarmControllerProvider.notifier).setTab(1),
+                    icon: const Icon(Icons.list),
+                    label: const Text('All alarms'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (alarms.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(24),
+                  decoration: softPanel(radius: 26),
+                  child: const Column(
+                    children: [
+                      Icon(
+                        Icons.alarm_add_outlined,
+                        color: AppColors.rose,
+                        size: 42,
+                      ),
+                      SizedBox(height: 12),
+                      Text(
+                        'No alarms yet',
+                        style: TextStyle(
+                          color: AppColors.roseDark,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                for (final alarm in alarms.take(2)) AlarmCard(alarm: alarm),
             ]),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ClockPanel extends StatelessWidget {
+  const _ClockPanel({required this.now});
+
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(24, 28, 24, 26),
+      decoration: softPanel(radius: 30),
+      child: Column(
+        children: [
+          FittedBox(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  formatClock(now),
+                  style: Theme.of(context).textTheme.headlineLarge,
+                ),
+                const SizedBox(width: 10),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    periodFor(now),
+                    style: const TextStyle(
+                      color: AppColors.rose,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            formatDate(now),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: AppColors.muted,
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.8,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NextAlarmPanel extends ConsumerWidget {
+  const _NextAlarmPanel({required this.alarm});
+
+  final AlarmModel? alarm;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: softPanel(radius: 30),
+      child: Row(
+        children: [
+          Container(
+            width: 62,
+            height: 62,
+            decoration: const BoxDecoration(
+              color: AppColors.blush,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.alarm, color: AppColors.rose, size: 34),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'NEXT ALARM',
+                  style: TextStyle(
+                    color: AppColors.ink,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  alarm == null ? '--:--' : formatTimeOfDay(alarm!.time),
+                  style: const TextStyle(
+                    color: AppColors.rose,
+                    fontSize: 38,
+                    fontWeight: FontWeight.w900,
+                    height: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: alarm != null,
+            activeTrackColor: AppColors.rose,
+            activeThumbColor: Colors.white,
+            onChanged: alarm == null
+                ? null
+                : (enabled) {
+                    ref
+                        .read(alarmControllerProvider.notifier)
+                        .toggleAlarm(alarm!.id, enabled);
+                  },
+          ),
+        ],
+      ),
     );
   }
 }

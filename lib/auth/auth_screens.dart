@@ -16,7 +16,7 @@ class LoginScreen extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return _AuthForm(
-      title: 'Welcome Back',
+      title: 'Welcome!',
       subtitle: 'Sign in to manage your alarms.',
       actionLabel: 'Login',
       isLogin: true,
@@ -24,13 +24,17 @@ class LoginScreen extends HookConsumerWidget {
       footerLabel: 'Create an account',
       footerAction: onShowRegister,
       googleLabel: 'Continue with Google',
-      onSubmit: (email, password) {
+      onSubmit: (email, password, rememberMe) {
+        ref.read(sessionSettingsProvider.notifier).setRememberMe(rememberMe);
         return ref
             .read(authControllerProvider)
-            .login(email: email, password: password);
+            .login(email: email, password: password, rememberMe: rememberMe);
       },
-      onGoogleSubmit: () {
-        return ref.read(authControllerProvider).signInWithGoogle();
+      onGoogleSubmit: (rememberMe) {
+        ref.read(sessionSettingsProvider.notifier).setRememberMe(rememberMe);
+        return ref
+            .read(authControllerProvider)
+            .signInWithGoogle(rememberMe: rememberMe);
       },
     );
   }
@@ -56,14 +60,10 @@ class RegistrationScreen extends HookConsumerWidget {
       footerLabel: 'I already have an account',
       footerAction: onShowLogin,
       onSuccess: onRegistered,
-      googleLabel: 'Register with Google',
-      onSubmit: (email, password) {
+      onSubmit: (email, password, _) {
         return ref
             .read(authControllerProvider)
             .register(email: email, password: password);
-      },
-      onGoogleSubmit: () {
-        return ref.read(authControllerProvider).signInWithGoogle();
       },
     );
   }
@@ -79,9 +79,9 @@ class _AuthForm extends HookWidget {
     required this.footerLabel,
     required this.footerAction,
     this.onSuccess,
-    required this.googleLabel,
+    this.googleLabel,
     required this.onSubmit,
-    required this.onGoogleSubmit,
+    this.onGoogleSubmit,
   });
 
   final String title;
@@ -92,9 +92,10 @@ class _AuthForm extends HookWidget {
   final String footerLabel;
   final VoidCallback footerAction;
   final VoidCallback? onSuccess;
-  final String googleLabel;
-  final Future<void> Function(String email, String password) onSubmit;
-  final Future<void> Function() onGoogleSubmit;
+  final String? googleLabel;
+  final Future<void> Function(String email, String password, bool rememberMe)
+  onSubmit;
+  final Future<void> Function(bool rememberMe)? onGoogleSubmit;
 
   @override
   Widget build(BuildContext context) {
@@ -103,6 +104,7 @@ class _AuthForm extends HookWidget {
     final passwordController = useTextEditingController();
     final isSubmitting = useState(false);
     final isGoogleSubmitting = useState(false);
+    final rememberMe = useState(true);
     final errorText = useState<String?>(null);
 
     Future<void> submit() async {
@@ -113,7 +115,11 @@ class _AuthForm extends HookWidget {
       errorText.value = null;
 
       try {
-        await onSubmit(emailController.text, passwordController.text);
+        await onSubmit(
+          emailController.text,
+          passwordController.text,
+          rememberMe.value,
+        );
         onSuccess?.call();
       } on FirebaseAuthException catch (error) {
         errorText.value = _authErrorMessage(error, isLogin: isLogin);
@@ -131,7 +137,7 @@ class _AuthForm extends HookWidget {
       errorText.value = null;
 
       try {
-        await onGoogleSubmit();
+        await onGoogleSubmit?.call(rememberMe.value);
       } on FirebaseAuthException catch (error) {
         errorText.value = _authErrorMessage(error, isLogin: isLogin);
       } catch (error) {
@@ -153,7 +159,7 @@ class _AuthForm extends HookWidget {
             ),
             const SizedBox(height: 12),
             const Text(
-              'RK Rise & Shine',
+              'Rise & Shine',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: AppColors.rose,
@@ -241,6 +247,31 @@ class _AuthForm extends HookWidget {
                         isError: true,
                       ),
                     ],
+                    if (isLogin) ...[
+                      const SizedBox(height: 16),
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: rememberMe.value,
+                        activeColor: AppColors.rose,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        title: const Text(
+                          'Remember me',
+                          style: TextStyle(
+                            color: AppColors.roseDark,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        subtitle: Text(
+                          rememberMe.value
+                              ? 'Session timeout after 30 minutes idle.'
+                              : 'Session timeout after 5 minutes idle.',
+                          style: const TextStyle(color: AppColors.muted),
+                        ),
+                        onChanged: (value) {
+                          rememberMe.value = value ?? true;
+                        },
+                      ),
+                    ],
                     const SizedBox(height: 28),
                     FilledButton.icon(
                       style: FilledButton.styleFrom(
@@ -270,35 +301,39 @@ class _AuthForm extends HookWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.roseDark,
-                        minimumSize: const Size.fromHeight(58),
-                        side: const BorderSide(color: AppColors.border),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
+                    if (googleLabel != null && onGoogleSubmit != null) ...[
+                      const SizedBox(height: 16),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.roseDark,
+                          minimumSize: const Size.fromHeight(58),
+                          side: const BorderSide(color: AppColors.border),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        onPressed: isGoogleSubmitting.value
+                            ? null
+                            : submitGoogle,
+                        icon: isGoogleSubmitting.value
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: AppColors.rose,
+                                  strokeWidth: 2.4,
+                                ),
+                              )
+                            : const _GoogleMark(),
+                        label: Text(
+                          googleLabel!,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
                       ),
-                      onPressed: isGoogleSubmitting.value ? null : submitGoogle,
-                      icon: isGoogleSubmitting.value
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                color: AppColors.rose,
-                                strokeWidth: 2.4,
-                              ),
-                            )
-                          : const _GoogleMark(),
-                      label: Text(
-                        googleLabel,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
+                    ],
                     const SizedBox(height: 18),
                     TextButton(
                       onPressed: footerAction,
@@ -363,13 +398,15 @@ class _GoogleMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Text(
-      'G',
-      style: TextStyle(
-        color: Color(0xFF4285F4),
-        fontSize: 22,
-        fontWeight: FontWeight.w900,
-      ),
+    return Image.asset(
+      'assets/google_logo.png',
+      width: 24,
+      height: 24,
+      fit: BoxFit.contain,
+      semanticLabel: 'Google',
+      errorBuilder: (context, error, stackTrace) {
+        return const Icon(Icons.g_mobiledata, size: 28);
+      },
     );
   }
 }

@@ -23,6 +23,31 @@ final authControllerProvider = Provider<AuthController>((ref) {
   return AuthController(ref.watch(firebaseAuthProvider), GoogleSignIn.instance);
 });
 
+final sessionSettingsProvider =
+    StateNotifierProvider<SessionSettingsController, SessionSettings>((ref) {
+      return SessionSettingsController();
+    });
+
+class SessionSettings {
+  const SessionSettings({this.rememberMe = true});
+
+  final bool rememberMe;
+
+  Duration get timeout {
+    return rememberMe
+        ? const Duration(minutes: 30)
+        : const Duration(minutes: 5);
+  }
+}
+
+class SessionSettingsController extends StateNotifier<SessionSettings> {
+  SessionSettingsController() : super(const SessionSettings());
+
+  void setRememberMe(bool rememberMe) {
+    state = SessionSettings(rememberMe: rememberMe);
+  }
+}
+
 class AuthController {
   AuthController(this._auth, this._googleSignIn);
 
@@ -41,16 +66,28 @@ class AuthController {
     await _auth.signOut();
   }
 
-  Future<void> login({required String email, required String password}) async {
+  Future<void> login({
+    required String email,
+    required String password,
+    bool rememberMe = true,
+  }) async {
+    if (kIsWeb) {
+      await _auth.setPersistence(
+        rememberMe ? Persistence.LOCAL : Persistence.SESSION,
+      );
+    }
     await _auth.signInWithEmailAndPassword(
       email: email.trim(),
       password: password,
     );
   }
 
-  Future<void> signInWithGoogle() async {
+  Future<void> signInWithGoogle({bool rememberMe = true}) async {
     if (kIsWeb) {
-      await _auth.signInWithPopup(GoogleAuthProvider());
+      await _auth.setPersistence(
+        rememberMe ? Persistence.LOCAL : Persistence.SESSION,
+      );
+      await _auth.signInWithRedirect(GoogleAuthProvider());
       return;
     }
 

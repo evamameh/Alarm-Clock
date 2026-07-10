@@ -21,7 +21,10 @@ class AlarmAppShell extends ConsumerWidget {
     }
 
     final user = ref.watch(authStateProvider).value;
-    final logout = ref.read(authControllerProvider).logout;
+    Future<void> logout() {
+      return ref.read(authControllerProvider).logout();
+    }
+
     final screens = [
       HomeScreen(currentEmail: user?.email, onLogout: logout),
       AlarmsScreen(currentEmail: user?.email, onLogout: logout),
