@@ -1,5 +1,12 @@
 import 'package:flutter/material.dart';
 
+/// Current Philippine Standard Time (UTC+8).
+///
+/// Using UTC as the base keeps the app correct even when an emulator is left
+/// on its default UTC timezone. The Philippines does not observe DST.
+DateTime philippineNow() =>
+    DateTime.now().toUtc().add(const Duration(hours: 8));
+
 String twoDigits(int value) => value.toString().padLeft(2, '0');
 
 String formatClock(DateTime time) {

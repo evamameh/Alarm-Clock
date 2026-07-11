@@ -1,5 +1,6 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
+import '../time_formatters.dart';
 import 'alarm_controller.dart';
 import 'alarm_events.dart';
 import 'alarm_model.dart';
@@ -11,8 +12,15 @@ final alarmSchedulerProvider = Provider<AlarmScheduler>((ref) {
   return scheduler;
 });
 
-final clockProvider = StreamProvider<DateTime>((ref) {
-  return ref.watch(alarmSchedulerProvider).clockStream;
+final clockProvider = StreamProvider<DateTime>((ref) async* {
+  // Emit immediately, then read the device clock again every second. Keeping
+  // this separate from the alarm event broadcast prevents the UI from missing
+  // the scheduler's first tick and displaying a stale time.
+  yield philippineNow();
+  yield* Stream<DateTime>.periodic(
+    const Duration(seconds: 1),
+    (_) => philippineNow(),
+  );
 });
 
 final alarmEventsProvider = StreamProvider<AlarmEvent>((ref) {

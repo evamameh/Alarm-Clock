@@ -49,8 +49,7 @@ class AlarmModel {
       return false;
     }
     return now.hour == time.hour &&
-        now.minute == time.minute &&
-        now.second == 0;
+        now.minute == time.minute;
   }
 }
 

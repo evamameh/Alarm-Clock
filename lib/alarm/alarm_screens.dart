@@ -19,7 +19,7 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final now = ref.watch(clockProvider).value ?? DateTime.now();
+    final now = ref.watch(clockProvider).value ?? philippineNow();
     final alarms = ref.watch(
       alarmControllerProvider.select((state) => state.alarms),
     );
@@ -511,8 +511,10 @@ class AlarmEditorScreen extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selectedTime = useState(TimeOfDay.now());
-    final repeatDays = useState<Set<int>>({1, 2, 3, 4, 5});
+    final selectedTime = useState(TimeOfDay.fromDateTime(philippineNow()));
+    // Select every day by default so a newly created alarm works immediately,
+    // including when it is created on a weekend.
+    final repeatDays = useState<Set<int>>({1, 2, 3, 4, 5, 6, 7});
     final vibrate = useState(true);
     final snoozeMinutes = useState(5);
 
@@ -639,7 +641,7 @@ class RingingScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final now = ref.watch(clockProvider).value ?? DateTime.now();
+    final now = ref.watch(clockProvider).value ?? philippineNow();
     final controller = ref.read(alarmControllerProvider.notifier);
 
     return Scaffold(

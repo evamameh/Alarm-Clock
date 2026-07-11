@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../time_formatters.dart';
 import 'alarm_events.dart';
 import 'alarm_model.dart';
 
@@ -23,7 +24,7 @@ class AlarmScheduler {
   }
 
   void _onTick() {
-    final now = DateTime.now();
+    final now = philippineNow();
     _clockController.add(now);
     _eventController.add(AlarmTicked(now));
 

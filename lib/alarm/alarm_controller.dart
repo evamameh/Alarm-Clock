@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
+import '../time_formatters.dart';
 import 'alarm_events.dart';
 import 'alarm_model.dart';
 import 'alarm_providers.dart';
@@ -75,7 +76,9 @@ class AlarmController extends StateNotifier<AlarmState> {
 
   Future<void> snooze(AlarmModel alarm) async {
     await _player.stop();
-    final nextRing = DateTime.now().add(Duration(minutes: alarm.snoozeMinutes));
+    final nextRing = philippineNow().add(
+      Duration(minutes: alarm.snoozeMinutes),
+    );
     final snoozedAlarm = alarm.copyWith(
       time: TimeOfDay(hour: nextRing.hour, minute: nextRing.minute),
       repeatDays: {},
